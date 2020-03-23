@@ -1,4 +1,7 @@
+use crate::id::NodeId;
+
+#[derive(Debug, Eq, PartialEq)]
 pub enum Edge {
-    With { node_index: usize },
+    With { id: NodeId },
     None,
 }

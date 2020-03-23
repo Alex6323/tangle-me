@@ -1,6 +1,6 @@
 use crate::edge::Edge;
 use crate::id::NodeId;
-use crate::ring::RingIterator;
+use crate::node::Node;
 
 //TEMP
 use crate::{
@@ -8,141 +8,107 @@ use crate::{
     TransactionHash,
 };
 
-const DEFAULT_TANGLE_CAPACITY: usize = 100000;
-const DEFAULT_OVERWRITE_LENGTH: usize = 5000;
+use std::collections::HashMap;
 
-pub enum Missing {
-    Both { trunk: NodeId, branch: NodeId },
-    Trunk { trunk: NodeId },
-    Branch { branch: NodeId },
-    None,
-}
+const DEFAULT_TANGLE_CAPACITY: usize = 100000;
+const DEFAULT_REDUCE_SIZE: usize = 5000; // used to remove a number of nodes with lowest `last_access` numbers
+const DEFAULT_AWAITED_CAPACITY: usize = 1000; // TODO: what's a good value here?
 
 pub struct Tangle {
-    pub size: usize,
+    /// Total capacity of the Tangle.
     pub capacity: usize,
-    pub iterator: RingIterator,
-    nodes: Vec<NodeId>,
-    trunks: Vec<Edge>,
-    branches: Vec<Edge>,
-    referrers: Vec<Vec<NodeId>>,
-    overwrite_len: usize,
-    solid_states: Vec<bool>,
-    missing_links: Vec<Missing>,
+
+    /// Holds all the nodes of the Tangle.
+    nodes: HashMap<NodeId, Node>,
+
+    /// Used to update `last_access` on a node.
+    counter: u64,
+
+    /// List of awaited nodes other nodes wanted to add as trunk or branch.
+    awaited: HashMap<NodeId, Vec<NodeId>>,
+
+    /// The number of nodes removed during a Tangle reduction procedure.
+    reduce_size: usize,
 }
 
 impl Tangle {
     pub fn new() -> Self {
-        Tangle::with_capacity(DEFAULT_TANGLE_CAPACITY, DEFAULT_OVERWRITE_LENGTH)
+        Tangle::with_capacity(DEFAULT_TANGLE_CAPACITY, DEFAULT_REDUCE_SIZE)
     }
 
-    /// NOTE: make sure that `capacity` is a multiple of `overwrite_chunk_size`, otherwise
-    /// this function will panic.
-    pub fn with_capacity(capacity: usize, overwrite_len: usize) -> Self {
-        assert!(capacity % overwrite_len == 0);
-
+    pub fn with_capacity(capacity: usize, reduce_size: usize) -> Self {
         Self {
-            size: 0,
             capacity,
-            iterator: RingIterator::new(0, capacity),
-            nodes: Vec::with_capacity(capacity),
-            trunks: Vec::with_capacity(capacity),
-            branches: Vec::with_capacity(capacity),
-            referrers: Vec::with_capacity(capacity),
-            overwrite_len,
-            solid_states: Vec::with_capacity(capacity),
-            missing_links: Vec::with_capacity(capacity),
+            nodes: HashMap::with_capacity(capacity),
+            counter: 0,
+            awaited: HashMap::with_capacity(DEFAULT_AWAITED_CAPACITY),
+            reduce_size,
         }
     }
 
     // TODO: if that files send a request to the storage layer
 
-    pub fn append(&mut self, transaction: &Transaction, transaction_hash: &TransactionHash) -> bool {
-        //
-        // Check if that node already exists in the Tangle
-        // Disadvantage: for new transactions, we will have to check each node (100k comparisons)
-        //
-        let node = NodeId::new(transaction_hash);
-        if self.find_node_index_from_id(node).is_some() {
+    pub fn append(&mut self, transaction: &Transaction, transaction_hash: &TransactionHash, solid: bool) -> bool {
+        let new_id = NodeId::new(transaction_hash);
+        if self.contains(new_id) {
             return false;
         }
 
-        //
-        //
-        //
         if self.is_full() {
-            self.invalidate_oldest();
+            self.reduce_size();
         }
 
-        //
-        //
-        //
-        let trunk = NodeId::new(&transaction.trunk);
-        let branch = NodeId::new(&transaction.branch);
+        let mut node = Node::new(new_id, solid, self.counter);
 
-        self.trunks
-            .push(if let Some(index) = self.find_node_index_from_id(trunk) {
-                Edge::With { node_index: index }
-            } else {
-                Edge::None
-            });
+        let trunk_id = NodeId::new(&transaction.trunk);
+        let branch_id = NodeId::new(&transaction.branch);
 
-        // TODO: if that files send a request to the storage layer
-        self.branches
-            .push(if let Some(index) = self.find_node_index_from_id(branch) {
-                Edge::With { node_index: index }
-            } else {
-                Edge::None
-            });
+        node.trunk = if let Some(trunk) = self.nodes.get_mut(&trunk_id) {
+            trunk.referrers.push(new_id);
+            Edge::With { id: trunk_id }
+        } else {
+            self.add_awaited(trunk_id, new_id);
+            Edge::None
+        };
 
-        // TODO: try to solidify older nodes
-        self.referrers.push(self.get_referrers());
+        node.branch = if let Some(branch) = self.nodes.get_mut(&branch_id) {
+            branch.referrers.push(new_id);
+            Edge::With { id: branch_id }
+        } else {
+            self.add_awaited(branch_id, new_id);
+            Edge::None
+        };
 
-        self.nodes.push(node);
+        if let Some(referrers) = self.awaited.remove(&new_id) {
+            node.referrers = referrers;
+        }
 
-        self.size += 1;
-        self.iterator.next();
+        self.nodes.insert(new_id, node);
+
+        self.counter += 1;
 
         true
     }
 
-    // TODO: get_tips
-
-    // TODO: see if searching in reverse order has benefits (assumption most of the time links should be rather near to eachother)
-    fn find_node_index_from_id(&self, id: NodeId) -> Option<usize> {
-        let iterator = self.iterator;
-
-        // Iteratate backwards from current position
-        // NOTE: on average this should yield the node very quickly if it exists
-        for index in iterator.rev().take(iterator.size) {
-            if self.nodes[index] == id {
-                return Some(index);
-            }
-        }
-        None
+    pub fn contains(&self, id: NodeId) -> bool {
+        self.nodes.contains_key(&id)
     }
 
-    fn is_full(&self) -> bool {
-        self.size == self.capacity
+    pub fn is_full(&self) -> bool {
+        self.size() == self.capacity
     }
 
-    fn current(&self) -> usize {
-        self.iterator.curr
+    pub fn size(&self) -> usize {
+        self.nodes.len()
     }
 
-    fn invalidate_oldest(&mut self) {
-        //self.len -=
+    fn reduce_size(&mut self) {
+        // 1) Iterate all nodes and collect `DEFAULT_REDUCE_SIZE` IDs of least accessed nodes
+        // 2) Remove associated nodes from list
     }
 
-    fn get_referrers(&self) -> Vec<NodeId> {
-        unimplemented!("TODO: implement referrers method");
-    }
-
-    fn solidify(&mut self) {}
-
-    // TODO: dump to storage layer (async + batched)
-    fn reduce(&mut self) {
-        //
+    fn add_awaited(&mut self, awaited_id: NodeId, by: NodeId) {
+        // TODO: use Entry-API to update self.awaited
     }
 }
 
@@ -158,13 +124,11 @@ mod tests {
     fn new() {
         let tangle = Tangle::new();
 
-        assert_eq!(0, tangle.iterator.curr);
-        assert_eq!(0, tangle.size);
+        assert_eq!(0, tangle.size());
         assert_eq!(DEFAULT_TANGLE_CAPACITY, tangle.capacity);
     }
 
     #[test]
-    #[ignore]
     fn append_and_get() {
         let mut tangle = Tangle::new();
 
@@ -173,6 +137,6 @@ mod tests {
             trunk: TransactionHash([1i8; 243]),
             branch: TransactionHash([2i8; 243]),
         };
-        tangle.append(&transaction, &transaction_hash);
+        tangle.append(&transaction, &transaction_hash, false);
     }
 }

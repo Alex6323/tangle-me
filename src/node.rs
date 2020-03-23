@@ -1,22 +1,44 @@
+use crate::edge::Edge;
 use crate::id::NodeId;
 
-#[derive(Copy, Clone, Debug)]
 pub struct Node {
-    pub(crate) hash: NodeId,
-    pub(crate) trunk: NodeId,
-    pub(crate) branch: NodeId,
+    pub id: NodeId,             //u64
+    pub trunk: Edge,            //u64
+    pub branch: Edge,           //u64
+    pub referrers: Vec<NodeId>, //u64...
+    pub solid: bool,            //bool
+    pub last_access: u64,       //u64
+}
+
+impl Node {
+    pub fn new(id: NodeId, solid: bool, last_access: u64) -> Self {
+        Self {
+            id,
+            trunk: Edge::None,
+            branch: Edge::None,
+            referrers: vec![],
+            solid,
+            last_access,
+        }
+    }
+
+    fn has_trunk(&self) -> bool {
+        self.trunk != Edge::None
+    }
+
+    fn has_branch(&self) -> bool {
+        self.branch != Edge::None
+    }
+
+    fn has_referrers(&self) -> bool {
+        self.referrers.len() > 0
+    }
 }
 
 impl Eq for Node {}
 impl PartialEq for Node {
     fn eq(&self, other: &Self) -> bool {
-        self.hash.eq(&other.hash)
-    }
-}
-
-impl Node {
-    pub fn from(hash: NodeId, trunk: NodeId, branch: NodeId) -> Self {
-        Self { hash, trunk, branch }
+        self.id == other.id
     }
 }
 
