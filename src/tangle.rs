@@ -1,6 +1,6 @@
 use crate::edge::Edge;
 use crate::id::NodeId;
-use crate::node::Node;
+use crate::node::Vertex;
 
 //TEMP
 use crate::{
@@ -14,12 +14,18 @@ const DEFAULT_TANGLE_CAPACITY: usize = 100000;
 const DEFAULT_REDUCE_SIZE: usize = 5000; // used to remove a number of nodes with lowest `last_access` numbers
 const DEFAULT_AWAITED_CAPACITY: usize = 1000; // TODO: what's a good value here?
 
+//.insert_transaction(Hash, Transaction)
+//.get_transaction(Hash)
+//.insert_milestone(Index, Hash), .get_milestone(Index), .get_latest_milestone()
+//.add_sep(Hash),
+//.is_sep(Hash)
+
 pub struct Tangle {
     /// Total capacity of the Tangle.
     pub capacity: usize,
 
     /// Holds all the nodes of the Tangle.
-    nodes: HashMap<NodeId, Node>,
+    vertices: HashMap<NodeId, Vertex>,
 
     /// Used to update `last_access` on a node.
     counter: u64,
@@ -39,7 +45,7 @@ impl Tangle {
     pub fn with_capacity(capacity: usize, reduce_size: usize) -> Self {
         Self {
             capacity,
-            nodes: HashMap::with_capacity(capacity),
+            vertices: HashMap::with_capacity(capacity),
             counter: 0,
             awaited: HashMap::with_capacity(DEFAULT_AWAITED_CAPACITY),
             reduce_size,
@@ -49,21 +55,23 @@ impl Tangle {
     // TODO: if that files send a request to the storage layer
 
     pub fn append(&mut self, transaction: &Transaction, transaction_hash: &TransactionHash, solid: bool) -> bool {
+        // Prevent duplicates
         let new_id = NodeId::new(transaction_hash);
         if self.contains(new_id) {
             return false;
         }
 
+        // Make some space if the Tangle has reached its capacity
         if self.is_full() {
             self.reduce_size();
         }
 
-        let mut node = Node::new(new_id, solid, self.counter);
+        let mut vertex = Vertex::new(new_id, solid, self.counter);
 
         let trunk_id = NodeId::new(&transaction.trunk);
         let branch_id = NodeId::new(&transaction.branch);
 
-        node.trunk = if let Some(trunk) = self.nodes.get_mut(&trunk_id) {
+        vertex.trunk = if let Some(trunk) = self.vertices.get_mut(&trunk_id) {
             trunk.referrers.push(new_id);
             Edge::With { id: trunk_id }
         } else {
@@ -71,7 +79,7 @@ impl Tangle {
             Edge::None
         };
 
-        node.branch = if let Some(branch) = self.nodes.get_mut(&branch_id) {
+        vertex.branch = if let Some(branch) = self.vertices.get_mut(&branch_id) {
             branch.referrers.push(new_id);
             Edge::With { id: branch_id }
         } else {
@@ -80,10 +88,10 @@ impl Tangle {
         };
 
         if let Some(referrers) = self.awaited.remove(&new_id) {
-            node.referrers = referrers;
+            vertex.referrers = referrers;
         }
 
-        self.nodes.insert(new_id, node);
+        self.vertices.insert(new_id, vertex);
 
         self.counter += 1;
 
@@ -91,7 +99,7 @@ impl Tangle {
     }
 
     pub fn contains(&self, id: NodeId) -> bool {
-        self.nodes.contains_key(&id)
+        self.vertices.contains_key(&id)
     }
 
     pub fn is_full(&self) -> bool {
@@ -99,12 +107,12 @@ impl Tangle {
     }
 
     pub fn size(&self) -> usize {
-        self.nodes.len()
+        self.vertices.len()
     }
 
     fn reduce_size(&mut self) {
-        // 1) Iterate all nodes and collect `DEFAULT_REDUCE_SIZE` IDs of least accessed nodes
-        // 2) Remove associated nodes from list
+        // 1) Iterate all vertices and collect `DEFAULT_REDUCE_SIZE` IDs of least accessed vertices
+        // 2) Remove associated vertices from list
     }
 
     fn add_awaited(&mut self, awaited_id: NodeId, by: NodeId) {

@@ -1,7 +1,7 @@
 use crate::edge::Edge;
 use crate::id::NodeId;
 
-pub struct Node {
+pub struct Vertex {
     pub id: NodeId,             //u64
     pub trunk: Edge,            //u64
     pub branch: Edge,           //u64
@@ -10,7 +10,7 @@ pub struct Node {
     pub last_access: u64,       //u64
 }
 
-impl Node {
+impl Vertex {
     pub fn new(id: NodeId, solid: bool, last_access: u64) -> Self {
         Self {
             id,
@@ -35,8 +35,8 @@ impl Node {
     }
 }
 
-impl Eq for Node {}
-impl PartialEq for Node {
+impl Eq for Vertex {}
+impl PartialEq for Vertex {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
@@ -44,8 +44,11 @@ impl PartialEq for Node {
 
 #[cfg(test)]
 mod tests {
-    //use super::*;
+    use super::*;
 
     #[test]
-    fn new_node() {}
+    fn new_node() {
+        //let id = NodeId::new(_hash)
+        //let _ = Node::new(id, solid, last_access)
+    }
 }

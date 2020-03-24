@@ -1,5 +1,7 @@
 use crate::TransactionHash;
 
+use trits_module_preview::T5B1;
+
 /// T5B1 encoded first 13 Trytes of a `TransactionHash`, that just fits into `u64`.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct NodeId(u64);
