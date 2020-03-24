@@ -1,7 +1,7 @@
-use crate::id::NodeId;
+use crate::vertex::VertexId;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Edge {
-    With { id: NodeId },
+    With { id: VertexId },
     None,
 }

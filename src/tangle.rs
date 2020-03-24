@@ -1,6 +1,8 @@
 use crate::edge::Edge;
-use crate::id::NodeId;
-use crate::node::Vertex;
+use crate::vertex::{
+    Vertex,
+    VertexId,
+};
 
 //TEMP
 use crate::{
@@ -25,13 +27,13 @@ pub struct Tangle {
     pub capacity: usize,
 
     /// Holds all the nodes of the Tangle.
-    vertices: HashMap<NodeId, Vertex>,
+    vertices: HashMap<VertexId, Vertex>,
 
     /// Used to update `last_access` on a node.
     counter: u64,
 
     /// List of awaited nodes other nodes wanted to add as trunk or branch.
-    awaited: HashMap<NodeId, Vec<NodeId>>,
+    awaited: HashMap<VertexId, Vec<VertexId>>,
 
     /// The number of nodes removed during a Tangle reduction procedure.
     reduce_size: usize,
@@ -56,7 +58,7 @@ impl Tangle {
 
     pub fn append(&mut self, transaction: &Transaction, transaction_hash: &TransactionHash, solid: bool) -> bool {
         // Prevent duplicates
-        let new_id = NodeId::new(transaction_hash);
+        let new_id = VertexId::new(transaction_hash);
         if self.contains(new_id) {
             return false;
         }
@@ -68,8 +70,8 @@ impl Tangle {
 
         let mut vertex = Vertex::new(new_id, solid, self.counter);
 
-        let trunk_id = NodeId::new(&transaction.trunk);
-        let branch_id = NodeId::new(&transaction.branch);
+        let trunk_id = VertexId::new(&transaction.trunk);
+        let branch_id = VertexId::new(&transaction.branch);
 
         vertex.trunk = if let Some(trunk) = self.vertices.get_mut(&trunk_id) {
             trunk.referrers.push(new_id);
@@ -98,7 +100,7 @@ impl Tangle {
         true
     }
 
-    pub fn contains(&self, id: NodeId) -> bool {
+    pub fn contains(&self, id: VertexId) -> bool {
         self.vertices.contains_key(&id)
     }
 
@@ -115,7 +117,7 @@ impl Tangle {
         // 2) Remove associated vertices from list
     }
 
-    fn add_awaited(&mut self, awaited_id: NodeId, by: NodeId) {
+    fn add_awaited(&mut self, awaited_id: VertexId, by: VertexId) {
         // TODO: use Entry-API to update self.awaited
     }
 }

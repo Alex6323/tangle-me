@@ -7,9 +7,10 @@
 pub use tangle::Tangle;
 
 mod edge;
-mod id;
-mod node;
 mod tangle;
+mod vertex;
+
+use trits_module_preview::T1B1;
 
 // TEMP: import bee_bundle::Transaction
 pub struct TransactionHash(pub [i8; 243]);
