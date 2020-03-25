@@ -28,9 +28,11 @@ impl TransactionHash {
         assert!(self.0.len() >= 8);
 
         let mut id = 0u64;
-        for i in 0..8 {
+        let mut j = 0;
+        (0..8).step_by(8).for_each(|i| {
             id |= (self.0.get_as_i8(i) as u64) << i;
-        }
+            j += 1;
+        });
         id
     }
     // TODO: implement this function to achieve better collision resistence
@@ -41,9 +43,11 @@ impl TransactionHash {
         assert!(t5b1.len() >= 8);
 
         let mut id = 0u64;
-        for i in 0..8 {
-            id |= (self.0.get_as_i8(i) as u64) << i;
-        }
+        let mut j = 0;
+        (0..8).step_by(8).for_each(|i| {
+            id |= (t5b1.get(j) as u64) << i;
+            j += 1;
+        });
         id
     }
 }
