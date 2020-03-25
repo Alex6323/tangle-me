@@ -1,4 +1,5 @@
-# tangle-me
-Just me trying to become better at Rust by implementing IOTA's Tangle data structure if I have some spare time (personal project!!)
+# Project goals
 
-I want to try several approaches/ideas, and especially learning when to use Unsafe Rust.
+* prototyping,
+* improve my understanding of graphs, and how to do them in Rust,
+* write a concurrent (lockfree at best) implementation capable of processing >1k TPS
