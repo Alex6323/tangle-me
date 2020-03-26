@@ -15,7 +15,7 @@ use std::collections::{
 };
 
 const DEFAULT_TANGLE_CAPACITY: usize = 100000;
-const DEFAULT_FREE_SIZE: usize = 5000; // used to remove a number of nodes with lowest `last_access` numbers
+const DEFAULT_FREE_SIZE: usize = 5000; // used to remove a number of vertices with lowest `last_access` numbers
 const DEFAULT_AWAITED_CAPACITY: usize = 1000; // TODO: what's a good value here?
 const DEFAULT_SEP_CAPACITY: usize = 5000; // TODO: find good value
 const DEFAULT_MS_CAPACITY: usize = 5000; // TODO: find good value
@@ -47,10 +47,10 @@ pub struct Tangle {
     /// Total capacity of the Tangle.
     pub capacity: usize,
 
-    /// Holds all the nodes of the Tangle.
+    /// Holds all the vertices of the Tangle.
     vertices: HashMap<TransactionId, Vertex>,
 
-    /// List of awaited nodes other nodes wanted to add as trunk or branch.
+    /// List of awaited vertices other vertices wanted to add as trunk or branch.
     awaited: HashMap<TransactionId, Vec<TransactionId>>,
 
     /// List of solid entry points.
@@ -62,10 +62,10 @@ pub struct Tangle {
     /// Milestone cache.
     milestones: HashMap<MilestoneIndex, TransactionId>,
 
-    /// Used to update `last_access` on a node.
+    /// Used to update `last_access` on a vertex.
     counter: u64,
 
-    /// The number of nodes removed during a Tangle reduction procedure.
+    /// The number of vertices removed during a Tangle reduction procedure.
     free_size: usize,
 }
 
