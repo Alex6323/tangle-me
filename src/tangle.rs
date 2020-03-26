@@ -14,7 +14,7 @@ use std::collections::{
     HashSet,
 };
 
-const DEFAULT_TANGLE_CAPACITY: usize = 100000;
+const DEFAULT_IN_MEM_CAPACITY: usize = 100000;
 const DEFAULT_FREE_SIZE: usize = 5000; // used to remove a number of vertices with lowest `last_access` numbers
 const DEFAULT_AWAITED_CAPACITY: usize = 1000; // TODO: what's a good value here?
 const DEFAULT_SEP_CAPACITY: usize = 5000; // TODO: find good value
@@ -45,7 +45,7 @@ use TangleError::*;
 
 pub struct Tangle {
     /// Total capacity of the Tangle.
-    pub capacity: usize,
+    in_mem_capacity: usize,
 
     /// Holds all the vertices of the Tangle.
     vertices: HashMap<TransactionId, Vertex>,
@@ -71,17 +71,17 @@ pub struct Tangle {
 
 impl Tangle {
     pub fn new() -> Self {
-        Tangle::with_capacity(DEFAULT_TANGLE_CAPACITY, DEFAULT_FREE_SIZE)
+        Tangle::with_capacity(DEFAULT_IN_MEM_CAPACITY, DEFAULT_FREE_SIZE)
     }
 
-    pub fn with_capacity(capacity: usize, free_size: usize) -> Self {
+    pub fn with_capacity(in_mem_capacity: usize, free_size: usize) -> Self {
         Self {
-            capacity,
-            vertices: HashMap::with_capacity(capacity),
+            in_mem_capacity,
+            vertices: HashMap::with_capacity(in_mem_capacity),
             counter: 0,
             awaited: HashMap::with_capacity(DEFAULT_AWAITED_CAPACITY),
             solid_entry_points: HashSet::with_capacity(DEFAULT_SEP_CAPACITY),
-            transactions: HashMap::with_capacity(DEFAULT_TANGLE_CAPACITY),
+            transactions: HashMap::with_capacity(in_mem_capacity),
             milestones: HashMap::with_capacity(DEFAULT_MS_CAPACITY),
             free_size,
         }
@@ -166,11 +166,11 @@ impl Tangle {
         self.vertices.contains_key(&id)
     }
 
-    pub fn is_full(&self) -> bool {
-        self.size() == self.capacity
+    fn is_full(&self) -> bool {
+        self.size() == self.in_mem_capacity
     }
 
-    pub fn size(&self) -> usize {
+    fn size(&self) -> usize {
         self.vertices.len()
     }
 
@@ -201,7 +201,7 @@ mod tests {
         let tangle = Tangle::new();
 
         assert_eq!(0, tangle.size());
-        assert_eq!(DEFAULT_TANGLE_CAPACITY, tangle.capacity);
+        assert_eq!(DEFAULT_IN_MEM_CAPACITY, tangle.in_mem_capacity);
     }
 
     #[test]

@@ -12,6 +12,7 @@ use minitri::{
     T5B1,
 };
 
+mod config;
 mod edge;
 mod id;
 mod milestone;
