@@ -41,6 +41,20 @@ impl<'a> Neighbors<'_> {
             approvers: vec![],
         }
     }
+
+    #[allow(dead_code)]
+    pub fn degree_in(&self) -> usize {
+        self.approvers.len()
+    }
+
+    #[allow(dead_code)]
+    pub fn degree_out(&self) -> usize {
+        match self.approvees {
+            Approvees::None => 0,
+            Approvees::Trunk(_) | Approvees::Branch(_) => 1,
+            Approvees::Both(_, _) => 2,
+        }
+    }
 }
 
 pub struct Tangle<'a> {
@@ -127,22 +141,9 @@ impl<'a> Tangle<'a> {
         self.nodes.len()
     }
 
-    /*
-    pub fn nodes(&'a self) -> impl Iterator<Item = Node> {
-        todo!()
+    pub fn contains(&self, node: &Node) -> bool {
+        self.nodes.contains_key(node)
     }
-
-    fn has_node(&self, node: &N) -> bool;
-
-    /// Returns the number of neighbors connected to node.
-    fn degree_in(&self, node: &N) -> usize;
-
-    /// Returns the number of neighbors connected to node.
-    fn degree_out(&self, node: &N) -> usize;
-
-    /// Returns true if an edge exists between source and target.
-    fn has_edge(&self, source: &N, target: &N) -> bool;
-    */
 }
 
 #[cfg(test)]
@@ -155,5 +156,56 @@ mod tests {
 
         assert!(tangle.is_empty());
         assert_eq!(0, tangle.size());
+    }
+
+    #[test]
+    fn insert_and_contains() {
+        let mut tangle = Tangle::new();
+
+        let a = Node::new(0);
+        tangle.add_node(a);
+
+        assert!(!tangle.is_empty());
+        assert_eq!(1, tangle.size());
+        assert!(tangle.contains(&a));
+
+        let b = Node::new(1);
+        tangle.add_node(b);
+
+        assert!(!tangle.is_empty());
+        assert_eq!(2, tangle.size());
+        assert!(tangle.contains(&b));
+    }
+
+    #[test]
+    fn add_trunk() {
+        let mut tangle = Tangle::new();
+
+        let a = Node::new(0);
+        let b = Node::new(1);
+
+        tangle.add_node(a);
+        tangle.add_node(b);
+
+        tangle.add_trunk(&a, &b);
+
+        assert!(tangle.has_edge(&a, &b));
+        assert!(tangle.has_edge(&b, &a));
+    }
+
+    #[test]
+    fn add_branch() {
+        let mut tangle = Tangle::new();
+
+        let a = Node::new(0);
+        let b = Node::new(1);
+
+        tangle.add_node(a);
+        tangle.add_node(b);
+
+        tangle.add_branch(&a, &b);
+
+        assert!(tangle.has_edge(&a, &b));
+        assert!(tangle.has_edge(&b, &a));
     }
 }
