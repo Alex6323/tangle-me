@@ -45,15 +45,11 @@ impl<'a> Neighbors<'_> {
 
 pub struct Tangle<'a> {
     nodes: IndexMap<Node, Neighbors<'a>>,
-    edges: Vec<(&'a Node, &'a Node)>,
 }
 
 impl<'a> Tangle<'a> {
     pub fn new() -> Self {
-        Self {
-            nodes: IndexMap::new(),
-            edges: Vec::new(),
-        }
+        Self { nodes: IndexMap::new() }
     }
 
     pub fn add_node(&mut self, node: Node) {
@@ -127,12 +123,8 @@ impl<'a> Tangle<'a> {
         self.nodes.is_empty()
     }
 
-    pub fn order(&self) -> usize {
-        self.nodes.len()
-    }
-
     pub fn size(&self) -> usize {
-        self.edges.len()
+        self.nodes.len()
     }
 
     /*
@@ -151,4 +143,17 @@ impl<'a> Tangle<'a> {
     /// Returns true if an edge exists between source and target.
     fn has_edge(&self, source: &N, target: &N) -> bool;
     */
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_tangle() {
+        let tangle = Tangle::new();
+
+        assert!(tangle.is_empty());
+        assert_eq!(0, tangle.size());
+    }
 }
