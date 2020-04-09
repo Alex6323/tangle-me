@@ -1,25 +1,16 @@
 use indexmap::IndexMap;
 
-#[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
-pub struct Node {
-    value: u8,
-}
+use std::hash::Hash;
 
-impl Node {
-    pub fn new(value: u8) -> Self {
-        Node { value }
-    }
-}
-
-pub enum Approvees<'a> {
+pub enum Approvees<'a, N> {
     None,
-    Trunk(&'a Node),
-    Branch(&'a Node),
-    Both(&'a Node, &'a Node),
+    Trunk(&'a N),
+    Branch(&'a N),
+    Both(&'a N, &'a N),
 }
 
-impl<'a> Approvees<'a> {
-    fn collect(&self) -> Vec<&'a Node> {
+impl<'a, N> Approvees<'a, N> {
+    fn collect(&self) -> Vec<&'a N> {
         use Approvees::*;
         match *self {
             None => vec![],
@@ -29,12 +20,12 @@ impl<'a> Approvees<'a> {
     }
 }
 
-pub struct Neighbors<'a> {
-    approvees: Approvees<'a>,
-    approvers: Vec<&'a Node>,
+pub struct Neighbors<'a, N> {
+    approvees: Approvees<'a, N>,
+    approvers: Vec<&'a N>,
 }
 
-impl<'a> Neighbors<'_> {
+impl<'a, N> Neighbors<'a, N> {
     pub fn new() -> Self {
         Self {
             approvees: Approvees::None,
@@ -57,20 +48,26 @@ impl<'a> Neighbors<'_> {
     }
 }
 
-pub struct Tangle<'a> {
-    nodes: IndexMap<Node, Neighbors<'a>>,
+pub struct Tangle<'a, N>
+where
+    N: Eq + Hash,
+{
+    nodes: IndexMap<N, Neighbors<'a, N>>,
 }
 
-impl<'a> Tangle<'a> {
+impl<'a, N> Tangle<'a, N>
+where
+    N: Eq + Hash,
+{
     pub fn new() -> Self {
         Self { nodes: IndexMap::new() }
     }
 
-    pub fn add_node(&mut self, node: Node) {
+    pub fn add_node(&mut self, node: N) {
         self.nodes.insert(node, Neighbors::new());
     }
 
-    pub fn add_trunk(&mut self, node: &'a Node, trunk: &'a Node) {
+    pub fn add_trunk(&mut self, node: &'a N, trunk: &'a N) {
         let nodes = &mut self.nodes;
 
         let mut node_neighbors = nodes.get_mut(node).unwrap();
@@ -91,7 +88,7 @@ impl<'a> Tangle<'a> {
         trunk_neighbors.approvers.push(node);
     }
 
-    pub fn add_branch(&mut self, node: &'a Node, branch: &'a Node) {
+    pub fn add_branch(&mut self, node: &'a N, branch: &'a N) {
         let nodes = &mut self.nodes;
 
         let mut node_neighbors = nodes.get_mut(node).unwrap();
@@ -112,7 +109,7 @@ impl<'a> Tangle<'a> {
         branch_neighbors.approvers.push(node);
     }
 
-    pub fn has_edge(&self, a: &Node, b: &Node) -> bool {
+    pub fn has_edge(&self, a: &N, b: &N) -> bool {
         let a_approvees = self.nodes.get(a).expect("error").approvees.collect();
         let b_approvees = self.nodes.get(b).expect("error").approvees.collect();
 
@@ -141,7 +138,7 @@ impl<'a> Tangle<'a> {
         self.nodes.len()
     }
 
-    pub fn contains(&self, node: &Node) -> bool {
+    pub fn contains(&self, node: &N) -> bool {
         self.nodes.contains_key(node)
     }
 }
@@ -150,9 +147,20 @@ impl<'a> Tangle<'a> {
 mod tests {
     use super::*;
 
+    #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
+    pub struct Node {
+        value: u8,
+    }
+
+    impl Node {
+        pub fn new(value: u8) -> Self {
+            Node { value }
+        }
+    }
+
     #[test]
     fn new_tangle() {
-        let tangle = Tangle::new();
+        let tangle: Tangle<Node> = Tangle::new();
 
         assert!(tangle.is_empty());
         assert_eq!(0, tangle.size());

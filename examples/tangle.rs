@@ -1,7 +1,15 @@
-use tangle::{
-    Node,
-    Tangle,
-};
+use tangle::Tangle;
+
+#[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
+pub struct Node {
+    value: u8,
+}
+
+impl Node {
+    pub fn new(value: u8) -> Self {
+        Node { value }
+    }
+}
 
 fn main() {
     let mut tangle = Tangle::new();

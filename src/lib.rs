@@ -1,6 +1,3 @@
 mod tangle;
 
-pub use crate::tangle::graph::{
-    Node,
-    Tangle,
-};
+pub use crate::tangle::graph::Tangle;
