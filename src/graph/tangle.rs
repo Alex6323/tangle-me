@@ -9,6 +9,7 @@ pub enum Approvees<'a, N> {
     Both(&'a N, &'a N),
 }
 
+// TODO: use smallvec
 impl<'a, N> Approvees<'a, N> {
     fn collect(&self) -> Vec<&'a N> {
         use Approvees::*;
@@ -145,13 +146,6 @@ where
         self.nodes.contains_key(node)
     }
 
-    pub fn approvers(&self, node: &N) -> Result<std::slice::Iter<'_, &N>, ()> {
-        match self.nodes.get(node) {
-            None => Err(()),
-            Some(neighbors) => Ok(neighbors.approvers.iter()),
-        }
-    }
-
     pub fn get_trunk(&self, node: &N) -> Result<Option<&N>, ()> {
         match self.nodes.get(node) {
             None => Err(()),
@@ -172,8 +166,19 @@ where
         }
     }
 
-    pub fn tips(&self) -> Result<std::slice::Iter<'_, &N>, ()> {
-        todo!("tips")
+    //pub fn approvers(&self, node: &N) -> Result<std::slice::Iter<'_, &N>, ()> {
+    pub fn approvers(&self, node: &N) -> Result<impl Iterator<Item = &&N>, ()> {
+        match self.nodes.get(node) {
+            None => Err(()),
+            Some(neighbors) => Ok(neighbors.approvers.iter()),
+        }
+    }
+
+    // TEMPORARY: instead of iterating all the nodes, keep a synced set of tips
+    pub fn tips(&self) -> impl Iterator<Item = &N> {
+        self.nodes
+            .iter()
+            .filter_map(|(n, v)| if v.is_tip() { Some(n) } else { None })
     }
 }
 
@@ -198,6 +203,7 @@ mod tests {
 
         assert!(tangle.is_empty());
         assert_eq!(0, tangle.size());
+        assert_eq!(None, tangle.tips().next());
     }
 
     #[test]
@@ -249,5 +255,66 @@ mod tests {
 
         assert!(tangle.has_edge(&a, &b));
         assert!(tangle.has_edge(&b, &a));
+    }
+
+    #[test]
+    fn iter_tips() {
+        let mut tangle = Tangle::new();
+
+        let a = Node::new(0);
+        let b = Node::new(1);
+        let c = Node::new(2);
+        let d = Node::new(3);
+        let e = Node::new(4);
+        let f = Node::new(5);
+
+        tangle.add_node(a);
+        tangle.add_node(b);
+        tangle.add_node(c);
+        tangle.add_node(d);
+        tangle.add_node(e);
+        tangle.add_node(f);
+
+        let mut num_tips = 0;
+        for _ in tangle.tips() {
+            num_tips += 1;
+        }
+        assert_eq!(6, num_tips);
+
+        tangle.add_trunk(&c, &a);
+        tangle.add_branch(&c, &b);
+
+        let mut num_tips = 0;
+        for _ in tangle.tips() {
+            num_tips += 1;
+        }
+        assert_eq!(4, num_tips);
+    }
+
+    #[test]
+    fn iter_approvers() {
+        let mut tangle = Tangle::new();
+
+        let a = Node::new(0);
+        let b = Node::new(1);
+        let c = Node::new(2);
+        let d = Node::new(3);
+        let e = Node::new(4);
+
+        tangle.add_node(a);
+        tangle.add_node(b);
+        tangle.add_node(c);
+        tangle.add_node(d);
+        tangle.add_node(e);
+
+        tangle.add_trunk(&c, &a);
+        tangle.add_trunk(&d, &a);
+        tangle.add_trunk(&e, &a);
+
+        tangle.add_branch(&c, &b);
+        tangle.add_branch(&d, &b);
+
+        assert_eq!(3, tangle.approvers(&a).unwrap().count());
+        assert_eq!(2, tangle.approvers(&b).unwrap().count());
     }
 }
