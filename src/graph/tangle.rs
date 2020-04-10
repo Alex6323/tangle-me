@@ -1,4 +1,8 @@
 use indexmap::IndexMap;
+use smallvec::{
+    smallvec,
+    SmallVec,
+};
 
 use std::hash::Hash;
 
@@ -9,14 +13,13 @@ pub enum Approvees<'a, N> {
     Both(&'a N, &'a N),
 }
 
-// TODO: use smallvec
 impl<'a, N> Approvees<'a, N> {
-    fn collect(&self) -> Vec<&'a N> {
+    fn collect(&self) -> SmallVec<[&'a N; 2]> {
         use Approvees::*;
         match *self {
-            None => vec![],
-            Trunk(n) | Branch(n) => vec![n],
-            Both(n1, n2) => vec![n1, n2],
+            None => smallvec![],
+            Trunk(n) | Branch(n) => smallvec![n],
+            Both(n1, n2) => smallvec![n1, n2],
         }
     }
 }
@@ -166,7 +169,6 @@ where
         }
     }
 
-    //pub fn approvers(&self, node: &N) -> Result<std::slice::Iter<'_, &N>, ()> {
     pub fn approvers(&self, node: &N) -> Result<impl Iterator<Item = &&N>, ()> {
         match self.nodes.get(node) {
             None => Err(()),
