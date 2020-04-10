@@ -1,3 +1,3 @@
-mod tangle;
+mod graph;
 
-pub use crate::tangle::graph::Tangle;
+pub use crate::graph::tangle::Tangle;

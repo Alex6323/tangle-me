@@ -33,7 +33,6 @@ impl<'a, N> Neighbors<'a, N> {
         }
     }
 
-    #[allow(dead_code)]
     pub fn degree_in(&self) -> usize {
         self.approvers.len()
     }
@@ -45,6 +44,10 @@ impl<'a, N> Neighbors<'a, N> {
             Approvees::Trunk(_) | Approvees::Branch(_) => 1,
             Approvees::Both(_, _) => 2,
         }
+    }
+
+    pub fn is_tip(&self) -> bool {
+        self.degree_in() == 0
     }
 }
 
@@ -140,6 +143,37 @@ where
 
     pub fn contains(&self, node: &N) -> bool {
         self.nodes.contains_key(node)
+    }
+
+    pub fn approvers(&self, node: &N) -> Result<std::slice::Iter<'_, &N>, ()> {
+        match self.nodes.get(node) {
+            None => Err(()),
+            Some(neighbors) => Ok(neighbors.approvers.iter()),
+        }
+    }
+
+    pub fn get_trunk(&self, node: &N) -> Result<Option<&N>, ()> {
+        match self.nodes.get(node) {
+            None => Err(()),
+            Some(neighbors) => match neighbors.approvees {
+                Approvees::None | Approvees::Branch(_) => Ok(None),
+                Approvees::Trunk(trunk) | Approvees::Both(trunk, _) => Ok(Some(trunk)),
+            },
+        }
+    }
+
+    pub fn get_branch(&self, node: &N) -> Result<Option<&N>, ()> {
+        match self.nodes.get(node) {
+            None => Err(()),
+            Some(neighbors) => match neighbors.approvees {
+                Approvees::None | Approvees::Trunk(_) => Ok(None),
+                Approvees::Branch(branch) | Approvees::Both(_, branch) => Ok(Some(branch)),
+            },
+        }
+    }
+
+    pub fn tips(&self) -> Result<std::slice::Iter<'_, &N>, ()> {
+        todo!("tips")
     }
 }
 
