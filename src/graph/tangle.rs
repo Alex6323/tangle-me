@@ -116,7 +116,7 @@ where
         branch_neighbors.approvers.push(node);
     }
 
-    pub fn has_edge(&self, a: &N, b: &N) -> bool {
+    pub fn has_edge(&self, a: &'a N, b: &'a N) -> bool {
         let a_approvees = self.nodes.get(a).expect("error").approvees.collect();
         let b_approvees = self.nodes.get(b).expect("error").approvees.collect();
 
@@ -149,7 +149,7 @@ where
         self.nodes.contains_key(node)
     }
 
-    pub fn get_trunk(&self, node: &N) -> Result<Option<&N>, ()> {
+    pub fn get_trunk(&self, node: &'a N) -> Result<Option<&'a N>, ()> {
         match self.nodes.get(node) {
             None => Err(()),
             Some(neighbors) => match neighbors.approvees {
@@ -159,7 +159,7 @@ where
         }
     }
 
-    pub fn get_branch(&self, node: &N) -> Result<Option<&N>, ()> {
+    pub fn get_branch(&self, node: &'a N) -> Result<Option<&'a N>, ()> {
         match self.nodes.get(node) {
             None => Err(()),
             Some(neighbors) => match neighbors.approvees {
@@ -169,7 +169,7 @@ where
         }
     }
 
-    pub fn approvers(&self, node: &N) -> Result<impl Iterator<Item = &&N>, ()> {
+    pub fn approvers(&self, node: &'a N) -> Result<impl Iterator<Item = &&'a N>, ()> {
         match self.nodes.get(node) {
             None => Err(()),
             Some(neighbors) => Ok(neighbors.approvers.iter()),
