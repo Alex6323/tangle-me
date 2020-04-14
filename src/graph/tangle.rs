@@ -14,6 +14,7 @@ pub enum Approvees<'a, N> {
 }
 
 impl<'a, N> Approvees<'a, N> {
+    // TODO: maybe return an iterable
     fn collect(&self) -> SmallVec<[&'a N; 2]> {
         use Approvees::*;
         match *self {
@@ -59,6 +60,7 @@ pub struct Tangle<'a, N>
 where
     N: Eq + Hash,
 {
+    // TODO: use NodeMeta { node: N, solid: bool } as key
     nodes: IndexMap<N, Neighbors<'a, N>>,
 }
 
@@ -70,8 +72,9 @@ where
         Self { nodes: IndexMap::new() }
     }
 
-    pub fn add_node(&mut self, node: N) {
-        self.nodes.insert(node, Neighbors::new());
+    pub fn add_node(&mut self, node: N) -> usize {
+        let (index, _) = self.nodes.insert_full(node, Neighbors::new());
+        index
     }
 
     pub fn add_trunk(&mut self, node: &'a N, trunk: &'a N) {
@@ -149,31 +152,35 @@ where
         self.nodes.contains_key(node)
     }
 
-    pub fn get_trunk(&self, node: &'a N) -> Result<Option<&'a N>, ()> {
+    pub fn get_trunk(&self, node: &'a N) -> Option<&'a N> {
         match self.nodes.get(node) {
-            None => Err(()),
+            None => None,
             Some(neighbors) => match neighbors.approvees {
-                Approvees::None | Approvees::Branch(_) => Ok(None),
-                Approvees::Trunk(trunk) | Approvees::Both(trunk, _) => Ok(Some(trunk)),
+                Approvees::None | Approvees::Branch(_) => None,
+                Approvees::Trunk(trunk) | Approvees::Both(trunk, _) => Some(trunk),
             },
         }
     }
 
-    pub fn get_branch(&self, node: &'a N) -> Result<Option<&'a N>, ()> {
+    pub fn get_branch(&self, node: &'a N) -> Option<&'a N> {
         match self.nodes.get(node) {
-            None => Err(()),
+            None => None,
             Some(neighbors) => match neighbors.approvees {
-                Approvees::None | Approvees::Trunk(_) => Ok(None),
-                Approvees::Branch(branch) | Approvees::Both(_, branch) => Ok(Some(branch)),
+                Approvees::None | Approvees::Trunk(_) => None,
+                Approvees::Branch(branch) | Approvees::Both(_, branch) => Some(branch),
             },
         }
     }
 
-    pub fn approvers(&self, node: &'a N) -> Result<impl Iterator<Item = &&'a N>, ()> {
+    pub fn get_approvees(&self, node: &'a N) -> Option<impl Iterator<Item = &'a N>> {
         match self.nodes.get(node) {
-            None => Err(()),
-            Some(neighbors) => Ok(neighbors.approvers.iter()),
+            None => None,
+            Some(neighbors) => Some(neighbors.approvees.collect().into_iter()),
         }
+    }
+
+    pub fn get_approvers(&self, node: &'a N) -> Option<impl Iterator<Item = &&'a N>> {
+        self.nodes.get(node).map(|neighbors| neighbors.approvers.iter())
     }
 
     // TEMPORARY: instead of iterating all the nodes, keep a synced set of tips
@@ -316,7 +323,7 @@ mod tests {
         tangle.add_branch(&c, &b);
         tangle.add_branch(&d, &b);
 
-        assert_eq!(3, tangle.approvers(&a).unwrap().count());
-        assert_eq!(2, tangle.approvers(&b).unwrap().count());
+        assert_eq!(3, tangle.get_approvers(&a).unwrap().count());
+        assert_eq!(2, tangle.get_approvers(&b).unwrap().count());
     }
 }

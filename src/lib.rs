@@ -51,31 +51,89 @@ impl<'a> Tangle<'a, BundledTransaction> {
 
         for _ in 0..bundle_last {
             node = match self.get_trunk(node) {
-                Ok(has_trunk) => match has_trunk {
-                    Some(trunk) => {
-                        // NOTE: make sure all transactions in the bundle have the same bundle hash
-                        if trunk.bundle_hash != bundle_hash {
-                            return None;
-                        }
-                        // NOTE: make sure `last_index` is the same
-                        if trunk.last != bundle_last {
-                            return None;
-                        }
-
-                        // NOTE: make sure its `index` is increasing
-                        if trunk.index != index + 1 {
-                            return None;
-                        }
-
-                        index = trunk.index;
-                        trunk
+                Some(trunk) => {
+                    // NOTE: make sure all transactions in the bundle have the same bundle hash
+                    if trunk.bundle_hash != bundle_hash {
+                        return None;
                     }
-                    None => return None,
-                },
-                Err(()) => return None,
+                    // NOTE: make sure `last_index` is the same
+                    if trunk.last != bundle_last {
+                        return None;
+                    }
+
+                    // NOTE: make sure its `index` is increasing
+                    if trunk.index != index + 1 {
+                        return None;
+                    }
+
+                    index = trunk.index;
+                    trunk
+                }
+                None => return None,
             }
         }
         Some(node)
+    }
+
+    // Tries to eagerly solidify `root` and its approvers.
+    //
+    // NOTE: this  method is called whenever new information arrives.
+    fn try_solidify(&mut self, root: &'a mut BundledTransaction) {
+        if root.solid {
+            return; // already solid
+        }
+
+        let mut stack = vec![root];
+        while let Some(node) = stack.pop() {
+            if self.get_trunk(node).filter(|n| n.solid).is_none() || self.get_branch(node).filter(|n| n.solid).is_none()
+            {
+                continue; // not all approvees are solid
+            } else {
+                //root.solid = true;
+            }
+
+            //if self.get_approvers()
+        }
+
+        /*
+        let vertices = &mut self.vertices;
+        let txs_to_approvers = &self.txs_to_approvers;
+
+        let mut stack = vec![root];
+        while let Some(current_vert) = stack.pop() {
+            if let Some(approvee_hashes) = vertices
+                .get(&current_vert)
+                .filter(|v| !v.is_solid())
+                .map(|v| v.approvee_hashes())
+            {
+                if approvee_hashes
+                    // For each of the current root's approvees...
+                    .iter()
+                    // ...ensure that they are all solid...
+                    .all(|a| {
+                        vertices.get(&a).map(|a| a.is_solid()).unwrap_or(false) || a.is_genesis()
+                    })
+                {
+                    // We can now solidify the current root since we know all approvees are solid
+                    vertices
+                        .get_mut(&current_vert)
+                        .unwrap() // Can't fail
+                        .set_solid();
+                    // Now, propagate this information to the approvers of the current root by
+                    // running the algorithm again for each of them
+                    for approver in txs_to_approvers
+                        .get(&current_vert)
+                        .iter()
+                        .map(|approvers| approvers.iter())
+                        .flatten()
+                    {
+                        // Push the approver to the stack as the next vertex to consider
+                        stack.push(*approver);
+                    }
+                }
+            }
+        }
+        */
     }
 }
 
