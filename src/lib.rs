@@ -92,7 +92,7 @@ impl<'a> Tangle<'a, BundledTransaction> {
                 //root.solid = true;
             }
 
-            //if self.get_approvers()
+            //if let Some(approvers) = self.get_approvers_mut(&node) {}
         }
 
         /*

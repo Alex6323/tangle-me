@@ -77,11 +77,44 @@ where
         index
     }
 
+    pub fn remove_node(&mut self, index: usize) -> Option<N> {
+        match self.nodes.swap_remove_index(index) {
+            None => None,
+            Some((node, neighbors)) => {
+                /*
+                let approvers = neighbors.approvers;
+                for node in approvers {
+                    //self.get
+                }
+                */
+                Some(node)
+            }
+        }
+    }
+
+    pub fn get_node(&'a self, index: usize) -> Option<&'a N> {
+        self.nodes.get_index(index).map(|(node, _)| node)
+    }
+
+    pub fn get_node_mut(&'a mut self, index: usize) -> Option<&'a mut N> {
+        self.nodes.get_index_mut(index).map(|(node, _)| node)
+    }
+
+    pub fn get_neighbors(&'a self, index: usize) -> Option<&'a Neighbors<'a, N>> {
+        self.nodes.get_index(index).map(|(_, neighbors)| neighbors)
+    }
+
+    pub fn get_neighbors_mut(&'a mut self, index: usize) -> Option<&'a mut Neighbors<'a, N>> {
+        self.nodes.get_index_mut(index).map(|(_, neighbors)| neighbors)
+    }
+
     pub fn add_trunk(&mut self, node: &'a N, trunk: &'a N) {
         let nodes = &mut self.nodes;
 
+        // TODO: fix unwrap
         let mut node_neighbors = nodes.get_mut(node).unwrap();
 
+        // TODO: return Result if trunk already set
         let has_branch = match node_neighbors.approvees {
             Approvees::None => None,
             Approvees::Branch(n) => Some(n),
@@ -94,10 +127,12 @@ where
             node_neighbors.approvees = Approvees::Trunk(trunk);
         }
 
+        // TODO: fix unwrap
         let trunk_neighbors = nodes.get_mut(trunk).unwrap();
         trunk_neighbors.approvers.push(node);
     }
 
+    // TODO: same fixes as `add_trunk`
     pub fn add_branch(&mut self, node: &'a N, branch: &'a N) {
         let nodes = &mut self.nodes;
 
@@ -124,7 +159,7 @@ where
         let b_approvees = self.nodes.get(b).expect("error").approvees.collect();
 
         if a_approvees.is_empty() && b_approvees.is_empty() {
-            return false;
+            false
         } else {
             for n in a_approvees {
                 if n == b {
@@ -150,6 +185,10 @@ where
 
     pub fn contains(&self, node: &N) -> bool {
         self.nodes.contains_key(node)
+    }
+
+    pub fn contains_index(&self, index: usize) -> bool {
+        self.nodes.get_index(index).is_some()
     }
 
     pub fn get_trunk(&self, node: &'a N) -> Option<&'a N> {
@@ -216,22 +255,49 @@ mod tests {
     }
 
     #[test]
-    fn insert_and_contains() {
+    fn add_and_contains() {
         let mut tangle = Tangle::new();
 
         let a = Node::new(0);
-        tangle.add_node(a);
+        let i = tangle.add_node(a);
 
         assert!(!tangle.is_empty());
         assert_eq!(1, tangle.size());
-        assert!(tangle.contains(&a));
+        assert_eq!(0, i);
+        assert!(tangle.contains_index(i));
 
         let b = Node::new(1);
-        tangle.add_node(b);
+        let j = tangle.add_node(b);
 
         assert!(!tangle.is_empty());
         assert_eq!(2, tangle.size());
-        assert!(tangle.contains(&b));
+        assert_eq!(1, j);
+        assert!(tangle.contains_index(i));
+        assert!(tangle.contains_index(j));
+    }
+
+    #[test]
+    fn add_and_get() {
+        let mut tangle = Tangle::new();
+
+        let a = Node::new(0);
+        let i = tangle.add_node(a);
+
+        let b = *tangle.get_node(i).expect("get_node");
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn add_and_remove() {
+        let mut tangle = Tangle::new();
+
+        let a = Node::new(0);
+        let i = tangle.add_node(a);
+        assert_eq!(1, tangle.size());
+
+        let b = tangle.remove_node(i).expect("remove_node");
+        assert_eq!(0, tangle.size());
+        assert_eq!(a, b);
     }
 
     #[test]
